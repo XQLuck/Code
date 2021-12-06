@@ -12,4 +12,5 @@ The data index tree as following:\
 │   │   ├── GT\
 │   ├── test\
 │   │   ├── input\
-│   │   ├── GT
+│   │   ├── GT\
+model : 链接：https://pan.baidu.com/s/1a075HjjA5EHKDhOR--7QxA  提取码：2345
