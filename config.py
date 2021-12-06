@@ -11,7 +11,7 @@ cfg     = __C
 __C.CONST                               = edict()
 __C.CONST.DEVICE                        = 'all'                   # '0'
 __C.CONST.NUM_WORKER                    = 0                       # number of data workers
-__C.CONST.WEIGHTS                       = '/home/xuqian/stfan_249_V100/ckpt/best-ckpt.pth.tar'
+__C.CONST.WEIGHTS                       = ''
 __C.CONST.TRAIN_BATCH_SIZE              = 5
 __C.CONST.TEST_BATCH_SIZE               = 1
 #
@@ -24,17 +24,17 @@ __C.DATASET.DATASET_NAME                = 'VideoDeblur'       # VideoDeblur, Vid
 # Directories
 #
 __C.DIR                                 = edict()
-__C.DIR.OUT_PATH = '/home/xuqian/occlusion_release/model_release/step1'
+__C.DIR.OUT_PATH = ''
 
 if cfg.DATASET.DATASET_NAME == 'VideoDeblur':
     __C.DIR.DATASET_JSON_FILE_PATH = './datasets/VideoDeblur_gopro.json'
-    __C.DIR.DATASET_ROOT = '/home/xuqian/dataset_GOPRO'
+    __C.DIR.DATASET_ROOT = '/dataset_GOPRO'
     __C.DIR.IMAGE_BLUR_PATH = os.path.join(__C.DIR.DATASET_ROOT,'%s/%s/input/%s.png')
     __C.DIR.IMAGE_CLEAR_PATH = os.path.join(__C.DIR.DATASET_ROOT,'%s/%s/GT/%s.png')
 # real
 if cfg.DATASET.DATASET_NAME == 'VideoDeblurReal':
     __C.DIR.DATASET_JSON_FILE_PATH = './datasets/VideoDeblurreal_gopro.json'
-    __C.DIR.DATASET_ROOT = '/home/xuqian/dataset_GOPRO'
+    __C.DIR.DATASET_ROOT = '/dataset_GOPRO'
     __C.DIR.IMAGE_BLUR_PATH = os.path.join(__C.DIR.DATASET_ROOT,'%s/%s/input/%s.png')
     __C.DIR.IMAGE_CLEAR_PATH = os.path.join(__C.DIR.DATASET_ROOT,'%s/%s/GT/%s.png')
 
