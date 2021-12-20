@@ -245,8 +245,7 @@ class DeblurNet(nn.Module):
         output_last_fea = self.fea(output_last_fea)
         
         conv_a_k = self.kconv_warp(output_last_fea, kernel_warp)
-        conv_a_k_1 = self.kconv_warp(output_last_fea, kernel_warp_ori)
-        conv_a_k=conv_a_k+conv_a_k_1
+
         
         conv3 = torch.cat([conv3_d_k, conv_a_k],1)
 
