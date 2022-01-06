@@ -37,7 +37,7 @@ def bulid_net(cfg):
 
     test_transforms = utils.data_transforms.Compose([
         utils.data_transforms.Normalize(mean=cfg.DATA.MEAN, std=cfg.DATA.STD),
-        # utils.data_transforms.RandomCrop(cfg.DATA.CROP_IMG_SIZE),
+        utils.data_transforms.RandomCrop(cfg.DATA.CROP_IMG_SIZE),
         utils.data_transforms.ToTensor(),
     ])
 

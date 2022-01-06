@@ -3,6 +3,11 @@ from models.FAC.kernelconv2d import KernelConv2D
 from torch import nn
 from correlation.correlation import FunctionCorrelation 
 import models.model_map as model_map
+from torch.nn import Softmax
+
+
+def INF(B,H,W):
+     return -torch.diag(torch.tensor(float("inf")).cuda().repeat(H),0).unsqueeze(0).repeat(B*W,1,1)
 device=torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Self_Attn(nn.Module):
@@ -70,7 +75,8 @@ class confidence_map(nn.Module):
             torch.nn.Conv2d(512, 1024, kernel_size=1, stride=1, padding=0),
             torch.nn.LeakyReLU(0.1,inplace=True),
             torch.nn.Conv2d(1024, ch3 * ks_2d ** 2, kernel_size=1, stride=1, padding=0)
-        )# self.attention = Self_Attn()
+        )
+        self.attention = Self_Attn()
 
     def forward(self, img_blur, last_img_blur, img_blur_fea, last_img_blur_fea,output_last_fea,kernel_wrap):
             
@@ -97,6 +103,7 @@ class confidence_map(nn.Module):
         intrpOut = self.ArbTimeFlowIntrp(torch.cat((last_img_blur, img_blur, F_0_1, F_1_0,F_t_1, F_t_0, g_I1_F_t_1, g_I0_F_t_0), dim=1))
         V_t_0   = intrpOut[:, 4:5, :, :]
         V_t_0 = self.vis_map_conv_2(self.vis_map_conv_1(V_t_0))
+        V_t_0=self.attention(V_t_0)
         information = torch.cat([cost_volume_ten, output_last_fea, V_t_0], 1)      
         alpha = self.net_alpha_second(information)
         beta = self.net_beta_second(information)
@@ -114,6 +121,10 @@ class DeblurNet(nn.Module):
         ch3 = 128
         self.down_fea_1=nn.Conv2d(2*ch3, 2*ch3, 3, 2, 1)
         self.img_down=nn.Conv2d(3, 3, 3, 2, 1)
+        
+        self.down_fea_2=nn.Conv2d(2*ch3, 2*ch3, 3, 2, 1)
+        self.img_down_2=nn.Conv2d(3, 3, 3, 2, 1)
+        
         
         self.upsample = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=False)
         
@@ -171,13 +182,24 @@ class DeblurNet(nn.Module):
             resnet_block(ch3, kernel_size=ks),
             conv(ch3, ch3 * ks_2d ** 2, kernel_size=1))
 
-    def forward(self, img_blur, last_img_blur, output_last_img, output_last_fea,output_last_fea_down):
+    def forward(self, img_blur, last_img_blur, output_last_img, output_last_fea,output_last_fea_down,output_last_fea_down_2):
         img_blur_down=self.img_down(img_blur)
         last_img_blur_down=self.img_down(last_img_blur)
         output_last_img_down=self.img_down(output_last_img)
         
+        
+        img_blur_down_2=self.img_down_2(img_blur_down)
+        last_img_blur_down_2=self.img_down_2(last_img_blur_down)
+        output_last_img_down_2=self.img_down_2(output_last_img_down)
+        
+        
+        
+        
+        
+        
         merge = torch.cat([img_blur, last_img_blur, output_last_img], 1)
         merge_down=torch.cat([img_blur_down, last_img_blur_down, output_last_img_down], 1)
+        merge_down_2=torch.cat([img_blur_down_2, last_img_blur_down_2, output_last_img_down_2], 1)
 
 
         kconv1 = self.kconv1_3(self.kconv1_2(self.kconv1_1(merge)))
@@ -187,10 +209,19 @@ class DeblurNet(nn.Module):
         kconv1_down = self.kconv1_3(self.kconv1_2(self.kconv1_1(merge_down)))
         kconv2_down = self.kconv2_3(self.kconv2_2(self.kconv2_1(kconv1_down)))
         kconv3_down = self.kconv3_3(self.kconv3_2(self.kconv3_1(kconv2_down)))
+        
+                
+        kconv1_down_2 = self.kconv1_3(self.kconv1_2(self.kconv1_1(merge_down_2)))
+        kconv2_down_2 = self.kconv2_3(self.kconv2_2(self.kconv2_1(kconv1_down_2)))
+        kconv3_down_2= self.kconv3_3(self.kconv3_2(self.kconv3_1(kconv2_down_2)))
+        
              
         kernel_warp = self.fac_warp(kconv3)
         kernel_warp_ori=kernel_warp
         kernel_warp_down=self.fac_warp(kconv3_down)
+        
+        kernel_warp_down_2=self.fac_warp(kconv3_down_2)
+        
 
         conv1_d = self.conv1_1(last_img_blur)
         conv1_d = self.conv1_3(self.conv1_2(conv1_d))
@@ -199,7 +230,7 @@ class DeblurNet(nn.Module):
         conv3_d = self.conv3_1(conv2_d)
         conv3_d = self.conv3_3(self.conv3_2(conv3_d))
         last_img_blur_fea=conv3_d
-               
+                       
         conv1_d = self.conv1_1(img_blur)
         conv1_d = self.conv1_3(self.conv1_2(conv1_d))
         conv2_d = self.conv2_1(conv1_d)
@@ -224,6 +255,32 @@ class DeblurNet(nn.Module):
         conv3_d = self.conv3_1(conv2_d)
         conv3_d = self.conv3_3(self.conv3_2(conv3_d))
         img_blur_fea_down=conv3_d
+        
+        
+        
+        conv1_d = self.conv1_1(last_img_blur_down_2)
+        conv1_d = self.conv1_3(self.conv1_2(conv1_d))
+        conv2_d = self.conv2_1(conv1_d)
+        conv2_d = self.conv2_3(self.conv2_2(conv2_d))
+        conv3_d = self.conv3_1(conv2_d)
+        conv3_d = self.conv3_3(self.conv3_2(conv3_d))
+        last_img_blur_fea_down_2=conv3_d
+               
+        conv1_d = self.conv1_1(img_blur_down_2)
+        conv1_d = self.conv1_3(self.conv1_2(conv1_d))
+        conv2_d = self.conv2_1(conv1_d)
+        conv2_d = self.conv2_3(self.conv2_2(conv2_d))
+        conv3_d = self.conv3_1(conv2_d)
+        conv3_d = self.conv3_3(self.conv3_2(conv3_d))
+        img_blur_fea_down_2=conv3_d
+        
+        
+        
+        
+        
+        
+        
+        
 
         
                 
@@ -231,13 +288,18 @@ class DeblurNet(nn.Module):
             output_last_fea = torch.cat([img_blur_fea, img_blur_fea],1)
         if output_last_fea_down is None:
             output_last_fea_down=torch.cat([img_blur_fea_down, img_blur_fea_down],1)
+            
+        if output_last_fea_down_2 is None:
+            output_last_fea_down_2=torch.cat([img_blur_fea_down_2, img_blur_fea_down_2],1)
         
         
         kernel_warp=self.confidencemap(img_blur,last_img_blur,img_blur_fea,last_img_blur_fea,output_last_fea,kernel_warp)
         kernel_warp_down=self.confidencemap(img_blur_down,last_img_blur_down,img_blur_fea_down,last_img_blur_fea_down,output_last_fea_down,kernel_warp_down)
+        kernel_warp_down_2=self.confidencemap(img_blur_down_2,last_img_blur_down_2,img_blur_fea_down_2,last_img_blur_fea_down_2,output_last_fea_down_2,kernel_warp_down_2)
         
         
-        kernel_warp=kernel_warp+self.upsample(kernel_warp_down)        
+        kernel_warp=kernel_warp+self.upsample(kernel_warp_down)+self.upsample(self.upsample(kernel_warp_down_2))
+              
         kconv4 = self.kconv4(kernel_warp)
         kernel_deblur = self.fac_deblur(torch.cat([kconv3, kconv4],1))        
         conv3_d_k = self.kconv_deblur(img_blur_fea, kernel_deblur)
@@ -245,7 +307,8 @@ class DeblurNet(nn.Module):
         output_last_fea = self.fea(output_last_fea)
         
         conv_a_k = self.kconv_warp(output_last_fea, kernel_warp)
-
+        # conv_a_k_1 = self.kconv_warp(output_last_fea, kernel_warp_ori)
+        # conv_a_k=conv_a_k+conv_a_k_1
         
         conv3 = torch.cat([conv3_d_k, conv_a_k],1)
 
@@ -253,6 +316,7 @@ class DeblurNet(nn.Module):
         upconv1 = self.upconv1_1(self.upconv1_2(self.upconv1_u(upconv2)))
         output_img = self.img_prd(upconv1) + img_blur
         output_fea = conv3
-        output_last_fea_down=self.down_fea_1(conv3) 
+        output_last_fea_down=self.down_fea_1(conv3)
+        output_last_fea_down_2=self.down_fea_1(output_last_fea_down) 
         
-        return output_img,output_fea,output_last_fea_down
+        return output_img,output_fea,output_last_fea_down,output_last_fea_down_2
